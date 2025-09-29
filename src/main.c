@@ -14,6 +14,8 @@
 #include "helpers.h"
 #include "plisten.h"
 
+int DEBUG_MODE = 0;
+
 char *outfile = "/dev/null";
 
 void exitsig(int x) {
@@ -51,7 +53,8 @@ void usage(char *self) {
         " -d - daemonize (reccommend using with -o flag)\n"
         " -o - output file\n"
         " output is dumped to stdout unless an output file is specified\n"
-        " stdout will be /dev/null if you daemonize\n",
+        " stdout will be /dev/null if you daemonize\n"
+        " -D - Debug mode\n",
         self);
   exit(3);
 }
@@ -124,6 +127,7 @@ int main(int argc, char *argv[], char *envp[]) {
   while ((opt = getopt(argc, (void*)argv, "do:")) != EOF) {
     switch(opt) {
       case 'd': daemon = 1; break;
+      case 'D': DEBUG_MODE = 1; break;
       case 'o':
         outfile = calloc(strlen(optarg) + 1, 1);
         sscanf(optarg, "%s", outfile);

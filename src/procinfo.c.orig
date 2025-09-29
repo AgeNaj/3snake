@@ -5,8 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-#include <limits.h>
-#include <libgen.h>
 
 #define FILE_PROCINFO 1
 #include "config.h"
@@ -14,30 +12,35 @@
 #include "procinfo.h"
 
 char *get_proc_name(pid_t process) {
-    char exe_path[PATH_MAX];
-    char *resolved_path = NULL;
-    ssize_t len;
+  char fname[UID_PATH_BUF + 1];
+  char *pname = NULL;
+  FILE *fp = NULL;
+  int i = 0;
+  size_t proc_cmdline_len = 0;
 
-    snprintf(exe_path, sizeof(exe_path), "/proc/%d/exe", process);
+  snprintf(fname, sizeof(fname), "/proc/%d/cmdline", process);
 
-    resolved_path = (char *)calloc(PATH_MAX, 1);
-    if (!resolved_path)
-        return NULL;
+  fp = fopen(fname, "rb");
 
-    len = readlink(exe_path, resolved_path, PATH_MAX - 1);
-    if (len == -1) {
-        free(resolved_path);
-        return NULL;
-    }
+  if (fp == NULL)
+    goto end_get_proc_name;
 
-    resolved_path[len] = '\0';
+  pname = (char *) calloc(sizeof(char) * UID_PATH_BUF+ 1, 1);
+  if (!pname)
+    goto end_get_proc_name;
 
-    // Use basename to get the name of the binary
-    char *base = basename(resolved_path);
-    char *result = strdup(base);
-    free(resolved_path);
+  proc_cmdline_len = fread(pname, 1, UID_PATH_BUF, fp);
+  for (i = 0; i < proc_cmdline_len; ++i) {
+      if (pname[i] == '\0')
+          pname[i] = ' ';
+  }
+  pname[UID_PATH_BUF] = '\0';
 
-    return result;
+end_get_proc_name:
+  if (fp)
+    fclose(fp);
+
+  return pname;
 }
 
 int get_proc_euid(pid_t process) {

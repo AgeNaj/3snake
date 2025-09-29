@@ -5,8 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-#include <limits.h>
-#include <libgen.h>
 
 #define FILE_PROCINFO 1
 #include "config.h"
@@ -14,30 +12,11 @@
 #include "procinfo.h"
 
 char *get_proc_name(pid_t process) {
-    char exe_path[PATH_MAX];
-    char *resolved_path = NULL;
-    ssize_t len;
 
-    snprintf(exe_path, sizeof(exe_path), "/proc/%d/exe", process);
+  if (fp)
+    fclose(fp);
 
-    resolved_path = (char *)calloc(PATH_MAX, 1);
-    if (!resolved_path)
-        return NULL;
-
-    len = readlink(exe_path, resolved_path, PATH_MAX - 1);
-    if (len == -1) {
-        free(resolved_path);
-        return NULL;
-    }
-
-    resolved_path[len] = '\0';
-
-    // Use basename to get the name of the binary
-    char *base = basename(resolved_path);
-    char *result = strdup(base);
-    free(resolved_path);
-
-    return result;
+  return pname;
 }
 
 int get_proc_euid(pid_t process) {
